@@ -1,0 +1,187 @@
+USE WAREHOUSE OPOSSUM_WH;
+USE DATABASE UCM;
+USE SCHEMA SMART_DESK;
+
+-- 1. Análisis completo de ventas y beneficio por producto.
+
+SELECT *
+FROM SALES;
+
+SELECT*
+FROM ACCOUNTS;
+
+SELECT *
+FROM FORECASTS;
+
+SELECT CATEGORY,
+SUM (PRODUCT) AS VENTAS_PRODUCTO,
+SUM (MAINTENANCE) AS VENTAS_MANTENIMIENTO,
+SUM (PARTS) AS VENTAS_PARTES,
+SUM (SUPPORT) AS VENTAS_APOYO,
+SUM (UNITS_SOLD) AS VENTAS_UNIDADES,
+SUM (PROFIT) AS GANANCIAS_TOTALES,
+ROUND(AVG(PROFIT), 2) AS CATEGORIA_PROMEDIO
+FROM SALES
+WHERE ACCOUNT = 'Abbot Industries' AND YEAR=2020
+GROUP BY CATEGORY;
+
+--REFLEXIÓN: 
+-- Como podemos ver en la tabla obtenida en SQL, la categoría de producto más rentable es Chairs con ganancias de $953,411, dando significado que las sillas son un producto clave para la empresa y que hay una alta demanda en ellas. Se podría considerar la incrementación de producción de sillas o sacar al mercado nuevos diseños.
+-- Continuando, podemos observar que las ventas de mantenimiento son importantes para la categoría de Chairs y Desks, donde los clientes no solo compran el producto como tal, sino buscan un mantenimiento de ello. En este caso, la empresa podría sacar promociones o paquetes, donde se vende el producto con un mantenimiento, piezas, apoyo, etc. para aumentar el valor promedio de transacciones.
+-- Por otro lado, podemos ver un bajo rendimiento en Electronics, mostrando bajo rendimiento comparando las otras categorías, teniendo ganancias de $312,830. Es importante para la empresa considerar un cambio en la estrategia o calidad de los productos electrónicos.
+-- Por último, la empresa podría considerar un nuevo ingreso de productos, ya que el promedio de ganancia por categoría es la misma que las ganancias totales. Al agregar un nuevo producto no solo se extienden en el mercado, le dan una nueva oportunidad a la empresa de obtener ganancias y ser conocida por sus productos.
+
+
+-- 2. Cálculo de pronóstico total y beneficio esperado.
+SELECT S.CATEGORY,
+SUM(S.PROFIT) AS GANANCIAS, S.QUARTER, F.FORECAST_GANANCIA, F.EDAD_MAX, F.EDAD_MIN
+FROM SALES AS S
+LEFT JOIN(
+SELECT CATEGORY, MAX(OPPORTUNITY_AGE) AS EDAD_MAX, MIN(OPPORTUNITY_AGE) AS EDAD_MIN, SUM(FORECAST_PROFIT) AS FORECAST_GANANCIA
+FROM FORECASTS
+GROUP BY CATEGORY) AS F
+ON S.CATEGORY = F.CATEGORY
+WHERE (S.QUARTER_OF_YEAR = 'Q1' AND YEAR = '2020') OR (S.QUARTER_OF_YEAR = 'Q3' AND YEAR = '2021')
+GROUP BY S.CATEGORY, F.FORECAST_GANANCIA, F.EDAD_MAX, F.EDAD_MIN, S.QUARTER
+ORDER BY S.CATEGORY ASC;
+
+-- Reflexión:
+--Como podemos ver en la tabla obtenida en SQL, la categoría de Break Room muestra las ganancias más altas con $7,185,878 entre primer trimestre del 2020 y tercer trimestre del 2021. Estos números confirman la importancia de esta categoría para la empresa, dando unas ganancias totales de $33,343,857. 
+
+-- Por otro lado, la categoría con las ganancias más bajas ha sido Chairs con $188,800 en el tercer trimestre del 2021 a comparación del resto de categorías. Es importante para la empresa analizar si hay un problema en la demanda o en la estrategia de ventas para mejorar el número de ganancias.
+
+--En las oportunidades por categoría:
+
+--Break room: Su oportunidad más reciente ha sido de 2 días y la más antigua de 378 días.
+--Chairs: Su oportunidad más reciente ha sido de 3 días y la más antigua de 173 días.
+--Desks: Su oportunidad más reciente ha sido de 3 días y la más antigua de 383 días.
+--Electronics: Su oportunidad más reciente ha sido de 3 días y más antigua de 383.
+
+--Las oportunidades más recientes pueden mostrar que hay nuevas oportunidades de venta siendo algo positivo, ya que hay interés en el producto. Mientras que las oportunidades antiguas muestran un problema para el proceso de venta, como una falta de seguimiento, desinterés o problemas en la propuesta, siendo un riesgo para la empresa.
+
+
+-- 3. Comparación de ventas, unidades vendidas y beneficio entre industrias en APAC y EMEA.
+SELECT A.INDUSTRY, A.REGION, SUM(S.PRODUCT) AS TOTAL_PRODUCTOS, SUM(S.UNITS_SOLD) AS UNIDADES, SUM(PROFIT) AS BENEFICIO, ROUND(AVG(PROFIT), 2) AS BENEFICIO_PROM
+FROM SALES AS S
+INNER JOIN ACCOUNTS AS A
+ON S.ACCOUNT = A.ACCOUNT
+WHERE REGION IN ('APAC','EMEA')
+GROUP BY A.INDUSTRY, A.REGION
+ORDER BY A.REGION ASC, BENEFICIO DESC;
+
+-- Reflexión:
+
+--Como podemos observar en la tabla obtenida en SQL, los ingresos totales en Retail para EMEA es el más alto con $15,491,588, siendo una de las industrias más importantes para la región. Por otra parte, la industria de Consulting en APAC muestra una gran importancia para su región, aunque es menor a los ingresos de Retail para EMEA.
+
+--En unidades vendidas, nuevamente Retail de EMEA se lleva el premio, con 44,261.67 unidades, siendo la industria con más unidades vendidas. Por otro lado, en APAC su industria con unidades más vendidas ha sido Consulting con 27,009,35.
+
+--El beneficio total obtenido en EMEA en la industria de Retail ha sido de $7,162,375 mientras que en APAC, la industria de Consulting ha obtenido $4,633,833 como beneficio total.
+
+--El beneficio total obtenido por unidad vendida es alto en la industria de Entertainment and Media en APAC, con $1,293,408 por unidad, lo que muestra un margen muy alto para la industria. Del otro lado, en EMEA, la industria de Biotech and Pharmaceutical muestra un beneficio promedio de $788,272 por unidad, siendo el más alto de esta región.
+
+--Comparando EMEA y APAC, podemos observar que EMEA tiene ingresos totales y beneficios mayores que APAC como en Retail y Entertainment and Media, mostrando ser un mercado más demandado que en APAC. Por otro lado, APAC ha mostrado que sus industrias muestran ingresos y beneficios muy positivos. Esta región debería mejorar sus estrategias para poder incrementar sus números e igualar a EMEA.
+
+
+--4. Beneficio por tipo de empresa
+SELECT F.ACCOUNT, SUM(F.FORECAST_PROFIT) AS GANANCIAS_FINALES, IFF(SUM(S.PROFIT) > 1000000, 'Alto', 'Normal') AS TIPO_DE_GANANCIA
+FROM FORECASTS F
+INNER JOIN SALES S
+ON F.ACCOUNT = S.ACCOUNT
+GROUP BY F.ACCOUNT
+HAVING GANANCIAS_FINALES > 500000;
+
+-- Reflexión:
+--Como podemos observar en la tabla obtenida en SQL, las cuentas que tienen ganancias superiores a $1,000,000 calificadas como Alto son:
+
+--Abbot Industries - $5,692,792
+--Adams Entertainment - $1,166,052
+--Anaheim Home Solutions - $1,653,813
+--Collins-Hampton Law Group - $6,393,000 
+--MilaMart - $5,430,000
+--Raven Networks - $1,607,948
+--Booster BI Software - $3,277,050
+--Rowe Creative Group - $1,189,500
+--Kessler-Langosh Consultants - $2,878,596
+--Hannigan & Griff - $1,320,000
+--JLG Gibson - $1,488,635
+--Speed Specialty Foods - $1,481,969
+--Ventala Inc - $1,574,000
+
+--La empresa con mayores ganancias es Collins-Hampton Law Group, con $6,393,000. 
+
+--Las empresas con ganancias menores a $1,000,000, clasificadas como Normales son:
+
+--Murray Home & Lawn - $610,000
+--Herbert Accounting - $852,021
+--Glazer Home Seller - $672,837
+--Augusta Research - $800,000
+--Beck Entertainment - $554,294
+--Hegmann Consulting - $544,001
+--Orange Communications - $563,688
+--Douglas Public Relations - $867,210
+--Venes Laboratories - $ 595,858
+
+--La empresa con mayores ganancias menores de $1,000,000 es Douglas Public Relations con ganancias de $867,210.
+
+
+-- 5. Beneficio acumulado por trimestre particionado por industria.
+SELECT A.INDUSTRY, S.QUARTER_OF_YEAR AS TRIMESTRE,
+SUM(S.PROFIT) AS SUMA_GANANCIAS, SUM(SUMA_GANANCIAS) OVER (PARTITION BY A.INDUSTRY ORDER BY TRIMESTRE ASC) AS GANANCIAS_ACUMULADAS, SUM(F.FORECAST_PROFIT) AS SUMA_FORECAST, SUM(SUMA_FORECAST) OVER (PARTITION BY A.INDUSTRY ORDER BY TRIMESTRE ASC) AS FORECAST_ACUMULADO, MAX(F.OPPORTUNITY_AGE) AS EDAD_MAX, MIN(F.OPPORTUNITY_AGE) AS EDAD_MIN
+FROM SALES S
+LEFT JOIN ACCOUNTS A ON S.ACCOUNT = A.ACCOUNT
+LEFT JOIN FORECASTS F ON S.CATEGORY = F.CATEGORY AND S.ACCOUNT = F.ACCOUNT
+GROUP BY A.INDUSTRY, TRIMESTRE
+HAVING SUM(F.FORECAST_PROFIT) > 0
+ORDER BY A.INDUSTRY, S.QUARTER_OF_YEAR ASC;
+
+-- Reflexión:
+--Como podemos observar en la tabla obtenida en SQL, cada  industria muestra un beneficio total y acumulado a lo largo de los trimestres. Podemos observar que la industria de Entertainment and Media comienza en el segundo trimestre con $4,372,073 y termina en el trimestre 4 con $12,458,242, siendo la industria con mayor beneficio acumulado. 
+-- En el forecast, la industria de Finance muestra $2,278,233 al final del trimestre 4, lo que anticipa ingresos para el futuro. 
+--Gracias a las columnas de Edad Máxima y Edad Mínima, podemos analizar la edad de las oportunidades, en la cual puede ayudar a identificar el tiempo que las oportunidades han estado abiertas. En la industria de Banking, la oportunidad más antigua ha sido de 20 días y la más antigua de 3 días.
+
+
+-- CASO PRACTICO: ANALISIS LIBRE
+
+-- 1. INTRODUCCION Y ANALISIS EXPLORATORIO. 
+
+-- 1. En toda empresa es importante identificar las mayores y menores áreas de rentabilidad para la toma de decisiones estratégicas de la empresa. En este caso, el objetivo del análisis es determinar cuál es la categoría de producto más rentable y menos rentable por región. 
+
+-- 2. ANÁLISIS SQL
+
+SELECT S.CATEGORY, A.REGION, SUM(S.PROFIT) AS GANANCIA_TOTAL, SUM(S.UNITS_SOLD) AS UNIDADES_VENDIDAS_TOTAL, COUNT(S.ACCOUNT) AS CUENTAS_TOTALES 
+FROM SALES AS S
+INNER JOIN ACCOUNTS AS A ON S.ACCOUNT = A.ACCOUNT
+GROUP BY S.CATEGORY, A.REGION
+ORDER BY REGION ASC, GANANCIA_TOTAL DESC;
+
+-- 3. REFLEXIÓN
+
+--Reflexión y sugerencia de estrategias.
+
+--Después de obtener la tabla final en SQL, podemos analizar y reflexionar distintas reflexiones sobre la rentabilidad de categorías de productos por región.
+
+--Categoría más rentable:
+
+--Región NAM: En la región de Norteamérica podemos ver que Break Room es la categoría más rentable, teniendo ganancias de $21,593,287. Esto significa que sus productos son altamente valorados en esta región.
+
+--Región EMEA: En la región de Europa, Medio Oriente y África podemos ver que como en Norteamérica, la categoría más rentable es Break room, con ganancias de $17,483,984. Esto significa que sus productos son altamente valorados y las empresas deberían seguir invirtiendo en esta categoría.
+
+--Región APAC: En la región de Asia y Pacifico, la categoría más rentable y con ganancias de $7,604,894 es Break room. Las empresas como en las otras regiones deben continuar invirtiendo, ya que sus productos son muy cotizados.
+
+--Región de LATAM: En la región de Latinoamérica la categoría con más rentabilidad es Electrónica, siendo la única región con una categoría distinta. Esta categoría tiene ganancias de $1,353,795, siendo la menor de las cuatro regiones. 
+
+--Categoría menos rentable:
+
+--Desks: Esta categoría es la que menor rendimiento tiene en todas las regiones, especialmente en Latinoamérica, teniendo ganancias de $164,245. Mientras tanto, en Asia y Pacifico, la categoría de Desks también muestra un rendimiento bajo con $627,836. 
+
+--En ambas regiones esto puede ser posible por una baja estrategía dentro de la empresa, como marketing. Es importante revisar la estrategia de marketing en estas regiones y de producto.
+
+--Si vemos la tabla, en Asia y Pacifico no hay venta de productos Chairs como en las otras regiones. Sería interesante realizar una investigación de mercado para ver una posibilidad de colocarlas en venta e incrementar las ganancias de la empresa.
+
+--Posibles mejoras y estrategías:
+
+--En la categoría de Electrónica, podemos ver que hay una alta diferencia de ganancias entre las regiones de APAC ($1,383,046) y EMEA ($5,820,989) con una diferencia de $4,437,943. Podría ser interesante realizar una investigación de preferencias de los clientes en cada región e identificar oportunidades para mejorar la oferta de productos electrónicos.
+
+--Por otro lado, la categoría de Chairs muestra un rendimiento bajo en Latinoamérica ($409,500) y no se muestra uno en Asia y Pacifico. Esto puede significar una nueva oportunidad para mejorar, como implementar nuevos diseños, precios, campañas de marketing, entre otras.
+
+--En la categoría de Desks, al registrar ingresos tan bajos, se debería realizar una investigación para obtener información de por qué está sucediendo las pocas ventas y considerar ajustar el diseño, precio o promoción de sus productos. 
